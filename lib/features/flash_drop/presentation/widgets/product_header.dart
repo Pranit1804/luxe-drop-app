@@ -1,8 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:luxe_drop/core/theme/app_theme.dart';
 
-class ProductHeader extends StatelessWidget {
+class ProductHeader extends StatefulWidget {
   const ProductHeader({super.key});
+
+  @override
+  State<ProductHeader> createState() => _ProductHeaderState();
+}
+
+class _ProductHeaderState extends State<ProductHeader> {
+  static const _imageUrl =
+      'https://images.unsplash.com/photo-1622434641406-a158123450f9?q=80&w=1000&auto=format&fit=crop';
+  static const _productImage = NetworkImage(_imageUrl);
+  bool _precached = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_precached) {
+      _precached = true;
+      precacheImage(_productImage, context);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,9 +37,7 @@ class ProductHeader extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               color: const Color(0xFF121212),
               image: const DecorationImage(
-                image: NetworkImage(
-                  'https://images.unsplash.com/photo-1622434641406-a158123450f9?q=80&w=1000&auto=format&fit=crop',
-                ),
+                image: _productImage,
                 fit: BoxFit.cover,
                 alignment: Alignment.center,
               ),
@@ -139,3 +156,4 @@ class ProductHeader extends StatelessWidget {
     );
   }
 }
+

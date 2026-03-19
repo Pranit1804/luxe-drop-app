@@ -1,0 +1,9 @@
+{
+  "dart.flutterSdkPath": ".fvm/versions/3.38.9",
+  "debug.allowBreakpointsEverywhere": true,
+  "debug.toolBarLocation": "commandCenter",
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit"
+  },
+  "java.configuration.updateBuildConfiguration": "interactive"
+}

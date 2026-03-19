@@ -21,7 +21,14 @@ class AppTheme {
   static const Color chartFill = Color(0x33D4AF37);
   static const Color chartGrid = Color(0xFF1F1F1F);
 
-  static ThemeData get darkTheme {
+  // PERF: Cached as a late static final so GoogleFonts.xxx() is only called
+  // once per app lifetime. Previously this was a getter that called
+  // GoogleFonts.playfairDisplay() and GoogleFonts.inter() 10 times on every
+  // access, creating 10 TextStyle objects + a ThemeData each time.
+  static final ThemeData darkTheme = _buildDarkTheme();
+
+  static ThemeData _buildDarkTheme() {
+    final textTheme = _buildTextTheme();
     return ThemeData(
       brightness: Brightness.dark,
       scaffoldBackgroundColor: scaffoldBackground,
@@ -34,7 +41,7 @@ class AppTheme {
         onSecondary: scaffoldBackground,
         onSurface: textPrimary,
       ),
-      textTheme: _textTheme,
+      textTheme: textTheme,
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -55,7 +62,7 @@ class AppTheme {
     );
   }
 
-  static TextTheme get _textTheme {
+  static TextTheme _buildTextTheme() {
     return TextTheme(
       headlineLarge: GoogleFonts.playfairDisplay(
         fontSize: 32,

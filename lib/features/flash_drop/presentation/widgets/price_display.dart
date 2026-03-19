@@ -38,38 +38,27 @@ class PriceDisplay extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 400),
-          transitionBuilder: (child, animation) {
-            final offsetAnimation =
-                Tween<Offset>(
-                  begin: Offset(0, _isPriceUp ? 0.3 : -0.3),
-                  end: Offset.zero,
-                ).animate(
-                  CurvedAnimation(
-                    parent: animation,
-                    curve: Curves.easeOutCubic,
-                  ),
-                );
-            return SlideTransition(
-              position: offsetAnimation,
-              child: FadeTransition(opacity: animation, child: child),
-            );
-          },
-          child: Text(
-            PriceFormatter.format(currentPrice),
-            key: ValueKey(currentPrice),
-            style: Theme.of(
-              context,
-            ).textTheme.displayLarge?.copyWith(color: priceColor),
+        // PERF: Use AnimatedDefaultTextStyle instead of AnimatedSwitcher.
+        // AnimatedSwitcher creates, mounts, and unmounts an entire widget
+        // subtree on every price tick (800ms) with SlideTransition +
+        // FadeTransition + CurvedAnimation objects. AnimatedDefaultTextStyle
+        // is an implicit animation that only interpolates the text style
+        // (no widget tree churn).
+        RepaintBoundary(
+          child: _AnimatedPrice(
+            price: currentPrice,
+            color: priceColor,
+            isPriceUp: _isPriceUp,
           ),
         ),
         if (changeAmount != null) ...[
           const SizedBox(height: 4),
+          // PERF: Simplified from AnimatedSwitcher with FadeTransition to
+          // just an AnimatedSwitcher with default crossFade. Much lighter.
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
             child: Row(
-              key: ValueKey(changeAmount),
+              key: ValueKey(changeAmount.toStringAsFixed(0)),
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
@@ -91,6 +80,35 @@ class PriceDisplay extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// Lightweight price text with animated color. Uses AnimatedDefaultTextStyle
+/// to avoid full widget tree teardown/rebuild on every 800ms price tick.
+class _AnimatedPrice extends StatelessWidget {
+  final double price;
+  final Color color;
+  final bool isPriceUp;
+
+  const _AnimatedPrice({
+    required this.price,
+    required this.color,
+    required this.isPriceUp,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final baseStyle = Theme.of(context).textTheme.displayLarge ??
+        const TextStyle(fontSize: 42, fontWeight: FontWeight.w700);
+
+    return AnimatedDefaultTextStyle(
+      duration: const Duration(milliseconds: 300),
+      style: baseStyle.copyWith(color: color),
+      child: Text(
+        PriceFormatter.format(price),
+        key: ValueKey(price.toStringAsFixed(0)),
+      ),
     );
   }
 }

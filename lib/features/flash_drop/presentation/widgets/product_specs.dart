@@ -63,11 +63,13 @@ class _ProductSpecsState extends State<ProductSpecs>
           duration: const Duration(milliseconds: 400),
           curve: Curves.easeInOutCubic,
           alignment: Alignment.topCenter,
-          child: SizedBox(
-            width: double.infinity,
-            height: _isExpanded ? null : 0,
-            child: Opacity(
+          child: Visibility(
+            visible: _isExpanded,
+            maintainState: true,
+            maintainAnimation: true,
+            child: AnimatedOpacity(
               opacity: _isExpanded ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 300),
               child: Padding(
                 padding: const EdgeInsets.only(top: 24.0, bottom: 8.0),
                 child: Column(

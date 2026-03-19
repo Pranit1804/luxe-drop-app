@@ -61,21 +61,16 @@ class InventoryIndicator extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            transitionBuilder: (child, animation) {
-              return FadeTransition(
-                opacity: animation,
-                child: ScaleTransition(scale: animation, child: child),
-              );
-            },
-            child: Text(
-              '$remainingInventory left',
-              key: ValueKey(remainingInventory),
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: _statusColor,
-                fontWeight: FontWeight.w700,
-              ),
+          // PERF: Replaced AnimatedSwitcher (which mounts/unmounts widget
+          // subtrees with ScaleTransition + FadeTransition, creating new
+          // animation controllers every inventory change) with a simple
+          // Text widget. The BlocSelector already gates rebuilds to only
+          // occur when remainingInventory changes.
+          Text(
+            '$remainingInventory left',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: _statusColor,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],

@@ -72,14 +72,19 @@ class _FlashDropView extends StatelessWidget {
             );
           }
         },
+        buildWhen: (previous, current) =>
+            previous.status != current.status,
         builder: (context, state) {
           if (state.status == FlashDropStatus.loading) {
             return _buildShimmerLoading(context);
           }
-          return _buildLoadedContent(context, state);
+          return const _LoadedContent();
         },
       ),
       bottomNavigationBar: BlocBuilder<FlashDropBloc, FlashDropState>(
+        buildWhen: (previous, current) =>
+            previous.status != current.status ||
+            previous.remainingInventory != current.remainingInventory,
         builder: (context, state) {
           if (state.status == FlashDropStatus.loading) {
             return _buildShimmerBottomBar(context);
@@ -181,39 +186,6 @@ class _FlashDropView extends StatelessWidget {
     );
   }
 
-  Widget _buildLoadedContent(BuildContext context, FlashDropState state) {
-    final downsampledHistorical = _downsample(
-      state.historicalData.map((e) => e.price).toList(),
-      300,
-    );
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 16),
-          const ProductHeader(),
-          const SizedBox(height: 32),
-          PriceDisplay(
-            currentPrice: state.currentPrice,
-            previousPrice: state.previousPrice,
-          ),
-          const SizedBox(height: 16),
-          InventoryIndicator(remainingInventory: state.remainingInventory),
-          const SizedBox(height: 32),
-          LiveChart(
-            historicalPrices: downsampledHistorical,
-            livePrices: state.livePricePoints,
-          ),
-          const SizedBox(height: 32),
-          const ProductSpecs(),
-          const SizedBox(height: 40),
-        ],
-      ),
-    );
-  }
-
   Widget _buildShimmerBottomBar(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
@@ -274,13 +246,67 @@ class _FlashDropView extends StatelessWidget {
       ),
     );
   }
+}
 
-  List<double> _downsample(List<double> data, int targetCount) {
-    if (data.length <= targetCount) return data;
-    final step = data.length / targetCount;
-    return List.generate(
-      targetCount,
-      (i) => data[(i * step).floor().clamp(0, data.length - 1)],
+/// Extracted loaded content with granular BlocSelectors to minimize rebuilds.
+/// Each child widget only rebuilds when its specific data slice changes.
+class _LoadedContent extends StatelessWidget {
+  const _LoadedContent();
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 16),
+          // ProductHeader is static — wrap in RepaintBoundary
+          const RepaintBoundary(child: ProductHeader()),
+          const SizedBox(height: 32),
+
+          // PriceDisplay only rebuilds on price changes
+          BlocSelector<FlashDropBloc, FlashDropState, ({double current, double? previous})>(
+            selector: (state) => (current: state.currentPrice, previous: state.previousPrice),
+            builder: (context, prices) {
+              return PriceDisplay(
+                currentPrice: prices.current,
+                previousPrice: prices.previous,
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // InventoryIndicator only rebuilds on inventory changes
+          BlocSelector<FlashDropBloc, FlashDropState, int>(
+            selector: (state) => state.remainingInventory,
+            builder: (context, inventory) {
+              return InventoryIndicator(remainingInventory: inventory);
+            },
+          ),
+          const SizedBox(height: 32),
+
+          // LiveChart only rebuilds when live prices change
+          BlocSelector<FlashDropBloc, FlashDropState,
+              ({List<double> historical, List<double> live})>(
+            selector: (state) => (
+              historical: state.downsampledHistorical,
+              live: state.livePricePoints,
+            ),
+            builder: (context, chartData) {
+              return LiveChart(
+                historicalPrices: chartData.historical,
+                livePrices: chartData.live,
+              );
+            },
+          ),
+          const SizedBox(height: 32),
+
+          // ProductSpecs is user-driven — wrap in RepaintBoundary
+          const RepaintBoundary(child: ProductSpecs()),
+          const SizedBox(height: 40),
+        ],
+      ),
     );
   }
 }

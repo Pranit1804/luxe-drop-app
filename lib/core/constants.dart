@@ -20,4 +20,8 @@ class AppConstants {
   static const double inventoryDecrementProbability = 0.3;
 
   static const String historicalBidsAssetPath = 'assets/historical_bids.json';
+
+  static const int maxLivePricePoints = 100;
+
+  static const int chartDownsampleTarget = 300;
 }

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:luxe_drop/core/constants.dart';
 import 'package:luxe_drop/features/flash_drop/domain/usecases/flash_drop_usecase.dart';
 import 'package:luxe_drop/features/flash_drop/presentation/bloc/flash_drop_event.dart';
 import 'package:luxe_drop/features/flash_drop/presentation/bloc/flash_drop_state.dart';
@@ -22,10 +23,17 @@ class FlashDropBloc extends Bloc<FlashDropEvent, FlashDropState> {
     try {
       final historicalData = await _useCase.getHistoricalData();
 
+      final allPrices = historicalData.map((e) => e.price).toList();
+      final downsampled = _downsample(
+        allPrices,
+        AppConstants.chartDownsampleTarget,
+      );
+
       emit(
         state.copyWith(
           status: FlashDropStatus.loaded,
           historicalData: historicalData,
+          downsampledHistorical: downsampled,
           currentPrice: historicalData.isNotEmpty
               ? historicalData.last.price
               : 0,
@@ -47,10 +55,21 @@ class FlashDropBloc extends Bloc<FlashDropEvent, FlashDropState> {
   }
 
   void _onPriceUpdated(PriceUpdated event, Emitter<FlashDropState> emit) {
-    final updatedLivePoints = [
-      ...state.livePricePoints,
-      event.priceUpdate.currentPrice,
-    ];
+    final currentLive = state.livePricePoints;
+    final List<double> updatedLivePoints;
+
+    // PERF: Use List.of + add instead of spread to reduce intermediate
+    // allocations and GC pressure on every 800ms tick.
+    if (currentLive.length >= AppConstants.maxLivePricePoints) {
+      updatedLivePoints = List<double>.of(
+        currentLive.sublist(
+          currentLive.length - AppConstants.maxLivePricePoints + 1,
+        ),
+      )..add(event.priceUpdate.currentPrice);
+    } else {
+      updatedLivePoints = List<double>.of(currentLive)
+        ..add(event.priceUpdate.currentPrice);
+    }
 
     emit(
       state.copyWith(
@@ -102,6 +121,15 @@ class FlashDropBloc extends Bloc<FlashDropEvent, FlashDropState> {
       );
       emit(state.copyWith(status: FlashDropStatus.loaded));
     }
+  }
+
+  static List<double> _downsample(List<double> data, int targetCount) {
+    if (data.length <= targetCount) return data;
+    final step = data.length / targetCount;
+    return List.generate(
+      targetCount,
+      (i) => data[(i * step).floor().clamp(0, data.length - 1)],
+    );
   }
 
   @override
